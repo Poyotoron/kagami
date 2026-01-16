@@ -23,6 +23,23 @@
 4. 「すべて変換」ボタンをクリック
 5. 変換された画像をダウンロード
 
+## デプロイ（GitHub Pages）
+
+このプロジェクトはGitHub Pagesにデプロイするように設定されています。
+
+### 初回セットアップ
+
+1. GitHubリポジトリの **Settings** → **Pages** を開く
+2. **Build and deployment** セクションで:
+   - **Source**: `GitHub Actions` を選択
+3. 設定を保存
+
+### デプロイ方法
+
+`main`ブランチにpushすると自動的にデプロイされます。
+
+デプロイ完了後、`https://<username>.github.io/kagami/` でアクセスできます。
+
 ## 開発
 
 ```bash

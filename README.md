@@ -17,7 +17,7 @@
 
 ## 使い方
 
-1. [Kagami](https://USERNAME.github.io/kagami) にアクセス
+1. [Kagami](https://kagami.maaaaa.net) にアクセス
 2. 画像をドラッグ&ドロップ、または「ファイルを選択」
 3. 変換オプション（形式・品質・サイズ）を設定
 4. 「すべて変換」ボタンをクリック
@@ -38,7 +38,7 @@
 
 `main`ブランチにpushすると自動的にデプロイされます。
 
-デプロイ完了後、`https://<username>.github.io/kagami/` でアクセスできます。
+デプロイ完了後、`https://kagami.maaaaa.net/` でアクセスできます。
 
 ## 開発
 

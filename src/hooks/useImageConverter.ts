@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ImageFile, ConversionOptions } from '../types';
 import { DEFAULT_CONVERSION_OPTIONS } from '../types';
-import { convertImage } from '../utils/imageProcessor';
 import { downloadImage, generateUniqueId } from '../utils/fileUtils';
 import { downloadAsZip } from '../utils/zipUtils';
+import type { WorkerMessage, WorkerResponse } from '../workers/imageWorker';
+import ImageWorker from '../workers/imageWorker?worker';
 
 export function useImageConverter() {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -11,6 +12,92 @@ export function useImageConverter() {
     DEFAULT_CONVERSION_OPTIONS
   );
   const [isConverting, setIsConverting] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+  const conversionQueueRef = useRef<string[]>([]);
+  const isProcessingRef = useRef(false);
+
+  // Initialize and cleanup worker
+  useEffect(() => {
+    workerRef.current = new ImageWorker();
+
+    workerRef.current.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const { type, id, progress, result, error } = event.data;
+
+      if (type === 'progress') {
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === id
+              ? { ...img, progress: progress ?? 0 }
+              : img
+          )
+        );
+      } else if (type === 'complete' && result) {
+        const url = URL.createObjectURL(result.blob);
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === id
+              ? {
+                  ...img,
+                  convertedBlob: result.blob,
+                  convertedUrl: url,
+                  convertedSize: result.blob.size,
+                  status: 'completed',
+                  progress: 100,
+                  error: null,
+                }
+              : img
+          )
+        );
+        processNextInQueue();
+      } else if (type === 'error') {
+        setImages((prev) =>
+          prev.map((img) =>
+            img.id === id
+              ? {
+                  ...img,
+                  status: 'error',
+                  progress: 0,
+                  error: error ?? '変換に失敗しました',
+                }
+              : img
+          )
+        );
+        processNextInQueue();
+      }
+    };
+
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+
+  const processNextInQueue = useCallback(() => {
+    if (conversionQueueRef.current.length === 0) {
+      isProcessingRef.current = false;
+      setIsConverting(false);
+      return;
+    }
+
+    const nextId = conversionQueueRef.current.shift()!;
+
+    setImages((prev) => {
+      const image = prev.find((img) => img.id === nextId);
+      if (image && workerRef.current) {
+        const currentOptions = options;
+        workerRef.current.postMessage({
+          type: 'convert',
+          id: nextId,
+          file: image.originalFile,
+          options: currentOptions,
+        } as WorkerMessage);
+      }
+      return prev.map((img) =>
+        img.id === nextId
+          ? { ...img, status: 'processing', error: null, progress: 0 }
+          : img
+      );
+    });
+  }, [options]);
 
   const addFiles = useCallback((files: File[]) => {
     const newImages: ImageFile[] = files.map((file) => ({
@@ -23,6 +110,7 @@ export function useImageConverter() {
       error: null,
       originalSize: file.size,
       convertedSize: null,
+      progress: 0,
     }));
 
     setImages((prev) => [...prev, ...newImages]);
@@ -32,7 +120,6 @@ export function useImageConverter() {
     setImages((prev) => {
       const image = prev.find((img) => img.id === id);
       if (image) {
-        // Clean up URLs
         URL.revokeObjectURL(image.originalUrl);
         if (image.convertedUrl) {
           URL.revokeObjectURL(image.convertedUrl);
@@ -40,110 +127,50 @@ export function useImageConverter() {
       }
       return prev.filter((img) => img.id !== id);
     });
+    // Remove from queue if present
+    conversionQueueRef.current = conversionQueueRef.current.filter(
+      (qId) => qId !== id
+    );
   }, []);
 
   const convertSingleImage = useCallback(
     async (imageId: string): Promise<void> => {
+      const image = images.find((img) => img.id === imageId);
+      if (!image || !workerRef.current) return;
+
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageId
-            ? { ...img, status: 'processing', error: null }
+            ? { ...img, status: 'processing', error: null, progress: 0 }
             : img
         )
       );
 
-      try {
-        const image = images.find((img) => img.id === imageId);
-        if (!image) return;
-
-        const result = await convertImage(image.originalFile, options);
-
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === imageId
-              ? {
-                  ...img,
-                  convertedBlob: result.blob,
-                  convertedUrl: result.url,
-                  convertedSize: result.blob.size,
-                  status: 'completed',
-                  error: null,
-                }
-              : img
-          )
-        );
-      } catch (error) {
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === imageId
-              ? {
-                  ...img,
-                  status: 'error',
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : '変換に失敗しました',
-                }
-              : img
-          )
-        );
-      }
+      workerRef.current.postMessage({
+        type: 'convert',
+        id: imageId,
+        file: image.originalFile,
+        options,
+      } as WorkerMessage);
     },
     [images, options]
   );
 
   const convertAll = useCallback(async () => {
+    const pendingImages = images.filter((img) => img.status === 'pending');
+    if (pendingImages.length === 0) return;
+
     setIsConverting(true);
 
-    const pendingImages = images.filter((img) => img.status === 'pending');
+    // Add all pending images to the queue
+    conversionQueueRef.current = pendingImages.map((img) => img.id);
 
-    for (const image of pendingImages) {
-      // Mark as processing
-      setImages((prev) =>
-        prev.map((img) =>
-          img.id === image.id
-            ? { ...img, status: 'processing', error: null }
-            : img
-        )
-      );
-
-      try {
-        const result = await convertImage(image.originalFile, options);
-
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === image.id
-              ? {
-                  ...img,
-                  convertedBlob: result.blob,
-                  convertedUrl: result.url,
-                  convertedSize: result.blob.size,
-                  status: 'completed',
-                  error: null,
-                }
-              : img
-          )
-        );
-      } catch (error) {
-        setImages((prev) =>
-          prev.map((img) =>
-            img.id === image.id
-              ? {
-                  ...img,
-                  status: 'error',
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : '変換に失敗しました',
-                }
-              : img
-          )
-        );
-      }
+    // Start processing if not already
+    if (!isProcessingRef.current) {
+      isProcessingRef.current = true;
+      processNextInQueue();
     }
-
-    setIsConverting(false);
-  }, [images, options]);
+  }, [images, processNextInQueue]);
 
   const handleDownload = useCallback(
     (image: ImageFile) => {
@@ -161,7 +188,6 @@ export function useImageConverter() {
   }, [images, options.format]);
 
   const clearAll = useCallback(() => {
-    // Clean up all URLs
     images.forEach((image) => {
       URL.revokeObjectURL(image.originalUrl);
       if (image.convertedUrl) {
@@ -169,6 +195,9 @@ export function useImageConverter() {
       }
     });
     setImages([]);
+    conversionQueueRef.current = [];
+    isProcessingRef.current = false;
+    setIsConverting(false);
   }, [images]);
 
   return {

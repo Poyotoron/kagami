@@ -23,6 +23,7 @@ export interface ImageFile {
   error: string | null;
   originalSize: number;
   convertedSize: number | null;
+  progress: number; // 0-100
 }
 
 export const ACCEPTED_INPUT_FORMATS = [

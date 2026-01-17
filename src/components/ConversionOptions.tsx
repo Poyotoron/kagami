@@ -41,18 +41,20 @@ export function ConversionOptions({
       <h2 className="text-lg font-semibold text-gray-900">変換オプション</h2>
 
       {/* Output Format */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
+      <fieldset className="space-y-2">
+        <legend className="block text-sm font-medium text-gray-700">
           出力形式
-        </label>
-        <div className="flex gap-2">
+        </legend>
+        <div className="flex gap-2" role="group" aria-label="出力フォーマットの選択">
           {(['jpeg', 'png', 'webp'] as ImageFormat[]).map((format) => (
             <button
               key={format}
               onClick={() => handleFormatChange(format)}
               disabled={disabled}
+              aria-pressed={options.format === format}
               className={`
                 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                 ${
                   options.format === format
                     ? 'bg-blue-500 text-white'
@@ -65,7 +67,7 @@ export function ConversionOptions({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* Quality Slider */}
       {showQualitySlider && (
@@ -84,9 +86,13 @@ export function ConversionOptions({
             value={options.quality}
             onChange={(e) => handleQualityChange(Number(e.target.value))}
             disabled={disabled}
+            aria-valuemin={1}
+            aria-valuemax={100}
+            aria-valuenow={options.quality}
+            aria-valuetext={`${options.quality}パーセント`}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
-          <div className="flex justify-between text-xs text-gray-500">
+          <div className="flex justify-between text-xs text-gray-500" aria-hidden="true">
             <span>低品質・小サイズ</span>
             <span>高品質・大サイズ</span>
           </div>

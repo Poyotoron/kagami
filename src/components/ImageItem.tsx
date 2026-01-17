@@ -26,8 +26,24 @@ export function ImageItem({ image, onRemove, onDownload }: ImageItemProps) {
   const isCompleted = image.status === 'completed';
   const hasError = image.status === 'error';
 
+  const getStatusText = () => {
+    switch (image.status) {
+      case 'pending':
+        return '変換待ち';
+      case 'processing':
+        return `変換中 ${image.progress}%`;
+      case 'completed':
+        return '変換完了';
+      case 'error':
+        return `エラー: ${image.error || '変換に失敗しました'}`;
+      default:
+        return '';
+    }
+  };
+
   return (
-    <div
+    <article
+      aria-label={`${image.originalFile.name} - ${getStatusText()}`}
       className={`
         flex items-center gap-4 p-4 bg-white rounded-xl border
         ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}
@@ -53,7 +69,22 @@ export function ImageItem({ image, onRemove, onDownload }: ImageItemProps) {
           {image.originalFile.name}
         </p>
         <div className="text-sm text-gray-500 mt-1">
-          {isProcessing && <span className="text-blue-500">変換中...</span>}
+          {isProcessing && (
+            <div className="space-y-1">
+              <span className="text-blue-500">変換中... {image.progress}%</span>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-full rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${image.progress}%` }}
+                  role="progressbar"
+                  aria-valuenow={image.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`変換進捗: ${image.progress}%`}
+                />
+              </div>
+            </div>
+          )}
           {hasError && (
             <span className="text-red-500">
               エラー: {image.error || '変換に失敗しました'}
@@ -80,15 +111,15 @@ export function ImageItem({ image, onRemove, onDownload }: ImageItemProps) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0" role="group" aria-label="ファイル操作">
         {isCompleted && (
           <button
             onClick={() => onDownload(image)}
-            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-            aria-label="ダウンロード"
+            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={`${image.originalFile.name}をダウンロード`}
             title="ダウンロード"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -100,12 +131,12 @@ export function ImageItem({ image, onRemove, onDownload }: ImageItemProps) {
         )}
         <button
           onClick={() => onRemove(image.id)}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          aria-label="削除"
+          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label={`${image.originalFile.name}を削除`}
           title="削除"
           disabled={isProcessing}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -115,6 +146,6 @@ export function ImageItem({ image, onRemove, onDownload }: ImageItemProps) {
           </svg>
         </button>
       </div>
-    </div>
+    </article>
   );
 }

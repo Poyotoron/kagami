@@ -27,25 +27,27 @@ export function ImageList({
   const hasPendingImages = images.some((img) => img.status === 'pending');
 
   return (
-    <div className="space-y-4">
+    <section aria-labelledby="image-list-heading" className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 id="image-list-heading" className="text-lg font-semibold text-gray-900">
           画像一覧 ({images.length}件)
         </h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="group" aria-label="画像操作">
           {hasPendingImages && (
             <button
               onClick={onConvertAll}
               disabled={isConverting}
+              aria-busy={isConverting}
               className={`
                 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium
                 hover:bg-blue-600 transition-colors
+                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                 disabled:opacity-50 disabled:cursor-not-allowed
               `}
             >
               {isConverting ? (
                 <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
                   変換中...
                 </span>
               ) : (
@@ -60,6 +62,7 @@ export function ImageList({
               className={`
                 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium
                 hover:bg-green-600 transition-colors
+                focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
                 disabled:opacity-50 disabled:cursor-not-allowed
               `}
             >
@@ -69,16 +72,23 @@ export function ImageList({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <ul
+        className="space-y-3"
+        role="list"
+        aria-label="変換する画像のリスト"
+        aria-live="polite"
+        aria-busy={isConverting}
+      >
         {images.map((image) => (
-          <ImageItem
-            key={image.id}
-            image={image}
-            onRemove={onRemove}
-            onDownload={onDownload}
-          />
+          <li key={image.id} role="listitem">
+            <ImageItem
+              image={image}
+              onRemove={onRemove}
+              onDownload={onDownload}
+            />
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </section>
   );
 }

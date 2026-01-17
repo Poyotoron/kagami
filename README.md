@@ -2,11 +2,15 @@
 
 > 鏡のように画像を映し、新しい形に変換する
 
+[![Deploy to GitHub Pages](https://github.com/Poyotoron/kagami/actions/workflows/deploy.yml/badge.svg)](https://github.com/Poyotoron/kagami/actions/workflows/deploy.yml)
+
 ## 特徴
 
 - **プライバシー重視** - すべての処理はブラウザ内で完結。画像がサーバーに送信されることはありません
-- **高速変換** - Canvas APIによる効率的な画像処理
+- **高速変換** - Web Workerによる非同期処理でUIをブロックせずスムーズに変換
+- **PWA対応** - オフラインでも動作。ホーム画面に追加してアプリとして利用可能
 - **レスポンシブ** - PC・タブレット・スマートフォンに対応
+- **アクセシビリティ** - キーボード操作・スクリーンリーダーに対応
 - **完全無料** - 広告なし、登録不要
 
 ## 対応フォーマット
@@ -14,6 +18,25 @@
 | 入力 | 出力 |
 |------|------|
 | JPEG, PNG, WebP, GIF, BMP, SVG | JPEG, PNG, WebP |
+
+## 機能一覧
+
+### 基本機能
+- ドラッグ&ドロップまたはファイル選択で画像を追加
+- 複数ファイルの同時処理
+- フォーマット変換（JPEG / PNG / WebP）
+- 品質調整（1-100%）
+- リサイズ（幅・高さ指定、アスペクト比維持）
+
+### 出力機能
+- 個別ダウンロード
+- 一括ダウンロード（ZIP形式）
+- 変換前後のファイルサイズ比較表示
+
+### UX機能
+- プログレスバーによる変換進捗表示
+- トースト通知（変換完了・エラー通知）
+- オフラインモード対応
 
 ## 使い方
 
@@ -23,22 +46,13 @@
 4. 「すべて変換」ボタンをクリック
 5. 変換された画像をダウンロード
 
-## デプロイ（GitHub Pages）
+### PWAとしてインストール
 
-このプロジェクトはGitHub Pagesにデプロイするように設定されています。
+1. Chrome/Edgeでサイトにアクセス
+2. アドレスバーのインストールアイコンをクリック
+3. 「インストール」を選択
 
-### 初回セットアップ
-
-1. GitHubリポジトリの **Settings** → **Pages** を開く
-2. **Build and deployment** セクションで:
-   - **Source**: `GitHub Actions` を選択
-3. 設定を保存
-
-### デプロイ方法
-
-`main`ブランチにpushすると自動的にデプロイされます。
-
-デプロイ完了後、`https://kagami.maaaaa.net/` でアクセスできます。
+インストール後はオフラインでも利用可能です。
 
 ## 開発
 
@@ -58,11 +72,57 @@ npm run preview
 
 ## 技術スタック
 
-- React 18+ (Vite)
-- TypeScript
-- Tailwind CSS
-- Canvas API
-- JSZip (一括ダウンロード用)
+- **フレームワーク**: React 18+ (Vite)
+- **言語**: TypeScript
+- **スタイリング**: Tailwind CSS
+- **画像処理**: Canvas API, Web Worker (OffscreenCanvas)
+- **PWA**: vite-plugin-pwa, Service Worker
+- **その他**: JSZip (一括ダウンロード用)
+
+## アーキテクチャ
+
+```
+src/
+├── components/     # UIコンポーネント
+├── contexts/       # React Context (トースト通知)
+├── hooks/          # カスタムフック
+├── utils/          # ユーティリティ関数
+├── workers/        # Web Worker (画像処理)
+└── types/          # 型定義
+```
+
+### Web Worker による画像処理
+
+大きな画像の処理時にUIがブロックされないよう、画像変換処理は Web Worker で実行されます。
+
+```
+メインスレッド                    Worker スレッド
+     │                              │
+     │──── 変換リクエスト ────────>│
+     │                              │
+     │<─── 進捗更新 (10%) ─────────│
+     │<─── 進捗更新 (50%) ─────────│
+     │<─── 進捗更新 (90%) ─────────│
+     │                              │
+     │<─── 変換完了 ───────────────│
+```
+
+## デプロイ（GitHub Pages）
+
+このプロジェクトはGitHub Pagesにデプロイするように設定されています。
+
+### 初回セットアップ
+
+1. GitHubリポジトリの **Settings** → **Pages** を開く
+2. **Build and deployment** セクションで:
+   - **Source**: `GitHub Actions` を選択
+3. 設定を保存
+
+### デプロイ方法
+
+`main`ブランチにpushすると自動的にデプロイされます。
+
+デプロイ完了後、`https://kagami.maaaaa.net/` でアクセスできます。
 
 ## 名前の由来
 

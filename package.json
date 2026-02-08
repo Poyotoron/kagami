@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Kagami - Browser-based image converter tool with privacy focus",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
